@@ -1,0 +1,10 @@
+.venv/
+build/
+__pycache__/
+*.safetensors
+*.bin
+*.gguf
+models/
+ref/golden/
+*.nsys-rep
+*.ncu-rep
