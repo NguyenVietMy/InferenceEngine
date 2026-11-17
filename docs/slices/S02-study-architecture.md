@@ -17,9 +17,9 @@ You're about to implement this twice (Python, then CUDA). Knowing the shapes col
    - Explain GQA: 32 query heads share 8 KV heads, so 4 query heads per KV head.
 
 ## Done when
-- [ ] The script lists **146** tensors for 1B (16 layers × 9 + embedding + final norm).
-- [ ] You can answer without looking: why is `k_proj` 512×2048? Why is there no `lm_head.weight`?
-- [ ] The notes file exists.
+- [X] The script lists **146** tensors for 1B (16 layers × 9 + embedding + final norm).
+- [X] You can answer without looking: why is `k_proj` 512×2048? Why is there no `lm_head.weight`?
+- [X] The notes file exists.
 
 ## Pitfalls
 - safetensors stores weights as `[out_features, in_features]`, so `y = x @ W.T`.
@@ -27,5 +27,3 @@ You're about to implement this twice (Python, then CUDA). Knowing the shapes col
 ## Resources
 - Karpathy, "Let's build GPT: from scratch, in code, spelled out."
 - HF `modeling_llama.py`. Read it, it's short.
-
-## Notes
