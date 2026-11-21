@@ -101,3 +101,18 @@ The 64-number slice is cut into 32 pairs that spin at different speeds: fast pai
 5. SCORES: each row of embed_tokens · x → 128,256 numbers, one per vocabulary token
            (weights are stored [out, in]: each output = one row · x)
 6. ARGMAX: pick the biggest → next token ID
+
+---
+1. Tokenizer: the text becomes token ids, a list of T whole numbers.
+2. Embedding: each id picks its row of E, giving a [T, 2048] table with one row per token.
+3. 16 layers, each doing the same four things:
+   - RMSNorm rescales each row to a standard size.
+   - Attention: each token looks at the earlier tokens and pulls in information from them. This is the only step where tokens talk to each other.
+   - MLP: each token's row is transformed on its own, by expanding to 8192, applying a nonlinear function, and compressing back to 2048.
+   - After attention and after the MLP, the result is added back to the row, so each layer adjusts the rows rather than replacing them.
+4. Final RMSNorm: one more rescale.
+5. Scores: multiply by E (the "other direction" from before) to get 128256 scores per token.
+6. Pick: take the last token's row of scores and choose the highest. That's the next token.
+7. Repeat: add the new token to the list and go back to step 2.
+
+The shape stays [T, 2048] through steps 2–4. Only the numbers in each row change, as the model builds up an understanding of each token in context.

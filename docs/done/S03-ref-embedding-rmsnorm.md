@@ -14,8 +14,8 @@ This becomes the readable spec your CUDA code is checked against. Writing it you
 4. Compare against HF: load the HF model in fp32, then call `model.model.embed_tokens` and `model.model.layers[0].input_layernorm` on the same input.
 
 ## Done when
-- [ ] Embedding output equals HF exactly.
-- [ ] RMSNorm max abs diff vs HF < 1e-5.
+- [X] Embedding output equals HF exactly.
+- [X] RMSNorm max abs diff vs HF < 1e-5.
 
 ## Pitfalls
 - RMSNorm takes the mean over the **last** dim (hidden), per token.
@@ -25,3 +25,5 @@ This becomes the readable spec your CUDA code is checked against. Writing it you
 - Zhang & Sennrich, "Root Mean Square Layer Normalization" (skim §3).
 
 ## Notes
+- Embedding vs HF: exact match (`torch.equal` → True).
+- RMSNorm vs HF (layer 0 input_layernorm): max abs diff 4.77e-07 (about one fp32 rounding step; HF multiplies by rsqrt, we divide by sqrt).
