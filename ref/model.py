@@ -77,6 +77,45 @@ def apply_rope(x: Tensor, cos: Tensor, sin: Tensor) -> Tensor:
     s = sin.unsqueeze(1)
     return torch.cat((a * c - b * s, a * s + b * c), dim=-1)   # rotate each arrow, join back to 64
 
+def attention(h: Tensor, weights: dict[str, Tensor], layer: int, config: dict,
+              cos: Tensor, sin: Tensor) -> Tensor:
+    # h: [T, 2048] (already RMSNorm-ed); cos, sin: [T, 32] from rope_tables
+    prefix = f"model.layers.{layer}.self_attn"
+    T = h.shape[0]
+    n_heads = config["num_attention_heads"]       # 32
+    n_kv_heads = config["num_key_value_heads"]    # 8
+    head_dim = config["head_dim"]                 # 64
+    group = n_heads // n_kv_heads                 # 4 query heads share one key/value head
+
+    # 1. project and split into heads
+    q = linear(h, weights[f"{prefix}.q_proj.weight"]).view(T, n_heads, head_dim)
+    k = linear(h, weights[f"{prefix}.k_proj.weight"]).view(T, n_kv_heads, head_dim)
+    v = linear(h, weights[f"{prefix}.v_proj.weight"]).view(T, n_kv_heads, head_dim)
+
+    # 2. rotate q and k (not v)
+    q = apply_rope(q, cos, sin)
+    k = apply_rope(k, cos, sin)
+
+    # 3. share key/value heads: query head h uses key/value head h // group
+    k = torch.repeat_interleave(k, group, dim=1)  # [T, 32, 64]
+    v = torch.repeat_interleave(v, group, dim=1)
+
+    # 4. heads first: [32, T, 64]
+    q = q.transpose(0, 1)
+    k = k.transpose(0, 1)
+    v = v.transpose(0, 1)
+
+    # 5. scores, causal mask, softmax
+    scores = (q @ k.transpose(-2, -1)) / math.sqrt(head_dim)       # [32, T, T]
+    mask = torch.triu(torch.ones(T, T, dtype=torch.bool), diagonal=1)
+    scores = scores.masked_fill(mask, float("-inf"))
+    attention_weights = torch.softmax(scores, dim=-1)
+
+    # 6. mix values, join heads, output projection
+    out = attention_weights @ v                                    # [32, T, 64]
+    out = out.transpose(0, 1).reshape(T, -1)                       # [T, 2048]
+    return linear(out, weights[f"{prefix}.o_proj.weight"])
+
 
 if __name__ == "__main__":
     weights, config = load_weights(MODEL_DIR)
